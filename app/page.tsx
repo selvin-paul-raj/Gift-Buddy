@@ -74,7 +74,7 @@ export default async function Home() {
           <div className="hidden md:block">
             <div className="w-full h-[200px] rounded-xl border bg-muted relative overflow-hidden">
               <Image
-                src="/giftbuddy-dashboard.png"
+                src="/giftbuddy-dashboard.jpg"
                 alt="GiftBuddy"
                 fill
                 className="object-cover"

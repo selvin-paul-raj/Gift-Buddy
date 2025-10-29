@@ -16,6 +16,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createOrUpdateUserProfile } from "@/lib/actions/createUser";
+import { Eye, EyeOff } from "lucide-react";
 
 export function SignUpForm({
   className,
@@ -26,6 +27,8 @@ export function SignUpForm({
   const [repeatPassword, setRepeatPassword] = useState("");
   const [name, setName] = useState("");
   const [birthday, setBirthday] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showRepeatPassword, setShowRepeatPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -48,7 +51,7 @@ export function SignUpForm({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`,
+          emailRedirectTo: `https://giftz-buddy-one.vercel.app/dashboard`,
         },
       });
       if (authError) throw authError;
@@ -72,7 +75,7 @@ export function SignUpForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="bg-slate-800 border-slate-700">
+      <Card className="bg-black border-slate-700">
         <CardHeader>
           <CardTitle className="text-2xl text-white">Sign up</CardTitle>
           <CardDescription className="text-gray-400">Create a new account</CardDescription>
@@ -88,7 +91,7 @@ export function SignUpForm({
                   placeholder="John Doe"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white placeholder-gray-400"
+                  className="bg-slate-900 border-slate-700 text-white placeholder-gray-500 focus:border-slate-600"
                 />
               </div>
               <div className="grid gap-2">
@@ -98,7 +101,7 @@ export function SignUpForm({
                   type="date"
                   value={birthday}
                   onChange={(e) => setBirthday(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white"
+                  className="bg-slate-900 border-slate-700 text-white focus:border-slate-600"
                 />
               </div>
               <div className="grid gap-2">
@@ -110,34 +113,62 @@ export function SignUpForm({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white placeholder-gray-400"
+                  className="bg-slate-900 border-slate-700 text-white placeholder-gray-500 focus:border-slate-600"
                 />
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="password" className="text-gray-300">Password</Label>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white placeholder-gray-400"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Create a strong password"
+                    className="bg-slate-900 border-slate-700 text-white placeholder-gray-500 pr-10 focus:border-slate-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="grid gap-2">
                 <div className="flex items-center">
                   <Label htmlFor="repeat-password" className="text-gray-300">Repeat Password</Label>
                 </div>
-                <Input
-                  id="repeat-password"
-                  type="password"
-                  required
-                  value={repeatPassword}
-                  onChange={(e) => setRepeatPassword(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white placeholder-gray-400"
-                />
+                <div className="relative">
+                  <Input
+                    id="repeat-password"
+                    type={showRepeatPassword ? "text" : "password"}
+                    required
+                    value={repeatPassword}
+                    onChange={(e) => setRepeatPassword(e.target.value)}
+                    placeholder="Confirm your password"
+                    className="bg-slate-900 border-slate-700 text-white placeholder-gray-500 pr-10 focus:border-slate-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRepeatPassword(!showRepeatPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showRepeatPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               {error && <p className="text-sm text-red-400">{error}</p>}
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={isLoading}>

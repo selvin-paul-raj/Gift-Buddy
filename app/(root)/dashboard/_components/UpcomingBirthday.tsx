@@ -7,8 +7,9 @@ import { createClient } from "@/lib/supabase/client";
 import type { EventData } from "@/lib/types/shared.types";
 
 export default function UpcomingBirthday({ data }: { data: any[] }) {
-  const [events, setEvents] = useState<EventData[]>([]);
+  const [allEvents, setAllEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"upcoming" | "completed">("upcoming");
 
   useEffect(() => {
     const fetchUserEvents = async () => {
@@ -34,12 +35,14 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
           console.error("Failed to fetch user profile:", profileError);
         }
 
-        const { data: upcomingEventsData, error: eventsError } = await supabase
+        // Fetch both upcoming and completed events
+        const { data: allEventsData, error: eventsError } = await supabase
           .from("events")
           .select(`
             id,
             title,
             date,
+            status,
             birthday_person_id,
             upi_id,
             phone,
@@ -51,9 +54,8 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
             ),
             users!events_birthday_person_id_fkey(name)
           `)
-          .eq("status", "upcoming")
           .neq("birthday_person_id", user.id)
-          .order("date", { ascending: true });
+          .order("date", { ascending: false });
 
         if (eventsError) {
           console.error("Events fetch error:", eventsError);
@@ -61,19 +63,19 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
           return;
         }
 
-        if (!upcomingEventsData) {
+        if (!allEventsData) {
           setLoading(false);
           return;
         }
 
         // Get user contributions for each event
-        const eventDataPromises = upcomingEventsData.map(async (event: any) => {
+        const eventDataPromises = allEventsData.map(async (event: any) => {
           const { data: contributions } = await supabase
             .from("contributions")
             .select("split_amount, paid, payment_time")
             .eq("event_id", event.id)
             .eq("user_id", user.id)
-            .single(); // Now there's only ONE contribution per user per event
+            .single();
 
           if (!contributions) {
             return null;
@@ -84,26 +86,27 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
           const gifts = (event.gifts || []).map((gift: any) => ({
             name: gift.gift_name,
             link: gift.gift_link || null,
-            amount: gift.total_amount / 100, // Convert from paise to rupees
+            amount: gift.total_amount / 100,
           }));
 
           return {
             eventId: event.id,
             eventTitle: event.title,
             eventDate: event.date,
+            status: event.status,
             birthdayPersonName: event.users?.name || "Unknown",
             totalGiftAmount,
             gifts,
             userUPI: event.upi_id || null,
             userPhone: event.phone || null,
-            userSplitAmount: contributions.split_amount / 100, // User's total share
+            userSplitAmount: contributions.split_amount / 100,
             paid: contributions.paid,
             paymentTime: contributions.payment_time,
-          } as EventData;
+          } as EventData & { status: string };
         });
 
         const eventResults = await Promise.all(eventDataPromises);
-        setEvents(eventResults.filter((e): e is EventData => e !== null));
+        setAllEvents(eventResults.filter((e): e is (EventData & { status: string }) => e !== null));
       } catch (error) {
         console.error("Error fetching events:", error);
       } finally {
@@ -113,6 +116,9 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
 
     fetchUserEvents();
   }, []);
+
+  const upcomingEvents = allEvents.filter((e: any) => e.status === "upcoming" && !e.paid);
+  const completedEvents = allEvents.filter((e: any) => e.status === "completed" || e.paid);
 
   if (loading) {
     return (
@@ -143,21 +149,82 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
     );
   }
 
-  if (events.length === 0) {
-    return (
-      <div className="text-center py-12 px-4">
-        <div className="text-6xl mb-4">🎂</div>
-        <h3 className="text-xl font-semibold text-foreground mb-2">No upcoming celebrations yet</h3>
-        <p className="text-muted-foreground">Celebrate with your team when the next birthday comes around!</p>
-      </div>
-    );
-  }
-
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
-      {events.map((event) => (
-        <UserEventCard key={event.eventId} event={event} />
-      ))}
+    <div className="space-y-6">
+      {/* Tabs */}
+      <div className="flex gap-2 border-b border-border">
+        <button
+          onClick={() => setActiveTab("upcoming")}
+          className={`px-4 py-3 font-medium transition-colors relative ${
+            activeTab === "upcoming"
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Upcoming ({upcomingEvents.length})
+          {activeTab === "upcoming" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+          )}
+        </button>
+        <button
+          onClick={() => setActiveTab("completed")}
+          className={`px-4 py-3 font-medium transition-colors relative ${
+            activeTab === "completed"
+              ? "text-foreground"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Completed ({completedEvents.length})
+          {activeTab === "completed" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary" />
+          )}
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "upcoming" && (
+        <div>
+          {upcomingEvents.length === 0 ? (
+            <div className="text-center py-12 px-4">
+              <div className="text-6xl mb-4">🎂</div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                No upcoming celebrations yet
+              </h3>
+              <p className="text-muted-foreground">
+                Celebrate with your team when the next birthday comes around!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              {upcomingEvents.map((event: any) => (
+                <UserEventCard key={event.eventId} event={event} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeTab === "completed" && (
+        <div>
+          {completedEvents.length === 0 ? (
+            <div className="text-center py-12 px-4">
+              <div className="text-6xl mb-4">✅</div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                No completed celebrations yet
+              </h3>
+              <p className="text-muted-foreground">
+                Your paid events will appear here!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+              {completedEvents.map((event: any) => (
+                <UserEventCard key={event.eventId} event={event} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

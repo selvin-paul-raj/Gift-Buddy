@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Header from "./_components/Header";
-import UpcomingBirthday from "./_components/UpcomingBirthday";
+import DashboardContent from "./_components/DashboardContent";
 
 export default async function Dashboard() {
   const supabase = await createClient();
@@ -11,12 +10,16 @@ export default async function Dashboard() {
     redirect("/auth/login");
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12 space-y-8 lg:space-y-12">
-        <Header />
-        <UpcomingBirthday data={[]} />
-      </div>
-    </div>
-  );
+  // Check if user is admin and redirect
+  const { data: userData } = await supabase
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (userData?.role === "admin") {
+    redirect("/admin");
+  }
+
+  return <DashboardContent />;
 }

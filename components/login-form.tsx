@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 export function LoginForm({
   className,
@@ -22,6 +23,7 @@ export function LoginForm({
 }: React.ComponentPropsWithoutRef<"div">) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
@@ -33,13 +35,29 @@ export function LoginForm({
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
       if (error) throw error;
-      // Update this route to redirect to an authenticated route. The user already has an active session.
-      router.push("/dashboard");
+
+      // Check user role and redirect accordingly
+      const userId = data.user?.id;
+      if (userId) {
+        const { data: userData } = await supabase
+          .from("users")
+          .select("role")
+          .eq("id", userId)
+          .single();
+
+        if (userData?.role === "admin") {
+          router.push("/admin");
+        } else {
+          router.push("/dashboard");
+        }
+      } else {
+        router.push("/dashboard");
+      }
     } catch (error: unknown) {
       setError(error instanceof Error ? error.message : "An error occurred");
     } finally {
@@ -49,7 +67,7 @@ export function LoginForm({
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="bg-slate-800 border-slate-700">
+      <Card className="bg-black border-slate-700">
         <CardHeader>
           <CardTitle className="text-2xl text-white">Login</CardTitle>
           <CardDescription className="text-gray-400">
@@ -68,7 +86,7 @@ export function LoginForm({
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white placeholder-gray-400"
+                  className="bg-slate-900 border-slate-700 text-white placeholder-gray-500 focus:border-slate-600"
                 />
               </div>
               <div className="grid gap-2">
@@ -81,14 +99,28 @@ export function LoginForm({
                     Forgot your password?
                   </Link>
                 </div>
-                <Input
-                  id="password"
-                  type="password"
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-slate-700 border-slate-600 text-white placeholder-gray-400"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="bg-slate-900 border-slate-700 text-white placeholder-gray-500 pr-10 focus:border-slate-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-300 transition-colors"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               {error && <p className="text-sm text-red-400">{error}</p>}
               <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white" disabled={isLoading}>
