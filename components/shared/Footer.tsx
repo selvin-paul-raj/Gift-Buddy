@@ -10,7 +10,7 @@ export default function Footer() {
         </p>
         <ThemeSwitcher />
         <p>
-          • <Link href="https://github.com/selvin-paul-raj" className="hover:underline">Selvin PaulRaj K</Link>
+          <Link href="https://github.com/selvin-paul-raj" className="hover:underline">Selvin PaulRaj K</Link>
         </p>
       </div>
     </footer>
