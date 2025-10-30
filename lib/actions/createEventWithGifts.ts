@@ -16,6 +16,7 @@ interface CreateEventInput {
   gifts: GiftInput[];
   upiId?: string;
   phoneNumber?: string;
+  excludedUserIds?: string[]; // New: User IDs to exclude from this event
 }
 
 export async function createEventWithGifts(input: CreateEventInput) {
@@ -58,6 +59,16 @@ export async function createEventWithGifts(input: CreateEventInput) {
     throw new Error("Not enough users for event");
   }
 
+  // Calculate actual split users (exclude birthday person + excluded users)
+  const excludedUserIds = input.excludedUserIds || [];
+  const actualSplitUsers = allUsers.filter(
+    (u) => u.id !== input.birthdayPersonId && !excludedUserIds.includes(u.id)
+  );
+
+  if (actualSplitUsers.length <= 0) {
+    throw new Error("At least one user must participate in cost splitting");
+  }
+
   try {
     // 1. Create event
     const { data: eventData, error: eventError } = await supabase
@@ -94,22 +105,20 @@ export async function createEventWithGifts(input: CreateEventInput) {
 
     if (giftsError) throw new Error(`Gift creation failed: ${giftsError.message}`);
 
-    // 3. Create contributions (one for each user except birthday person)
+    // 3. Create contributions (one for each user except birthday person and excluded users)
     // Calculate total split amount across all gifts
     const totalGiftAmount = giftsData.reduce((sum, gift) => sum + gift.total_amount, 0);
-    const splitAmountPerUser = Math.round(totalGiftAmount / usersToSplit);
+    const splitAmountPerUser = Math.round(totalGiftAmount / actualSplitUsers.length);
 
-    const contributionInserts = allUsers
-      .filter((u) => u.id !== input.birthdayPersonId) // Exclude birthday person
-      .map((user) => {
-        return {
-          event_id: eventId,
-          user_id: user.id,
-          split_amount: splitAmountPerUser,
-          paid: false,
-          payment_time: null,
-        };
-      });
+    const contributionInserts = actualSplitUsers.map((user) => {
+      return {
+        event_id: eventId,
+        user_id: user.id,
+        split_amount: splitAmountPerUser,
+        paid: false,
+        payment_time: null,
+      };
+    });
 
     const { error: contributionsError } = await supabase
       .from("contributions")
@@ -119,6 +128,23 @@ export async function createEventWithGifts(input: CreateEventInput) {
       throw new Error(
         `Contributions creation failed: ${contributionsError.message}`
       );
+
+    // 4. Add exclusions if any
+    if (excludedUserIds.length > 0) {
+      const exclusionInserts = excludedUserIds.map((userId) => ({
+        event_id: eventId,
+        excluded_user_id: userId,
+      }));
+
+      const { error: exclusionsError } = await supabase
+        .from("event_exclusions")
+        .insert(exclusionInserts);
+
+      if (exclusionsError)
+        throw new Error(
+          `Exclusions creation failed: ${exclusionsError.message}`
+        );
+    }
 
     // Revalidate paths
     revalidatePath("/admin");

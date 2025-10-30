@@ -51,7 +51,7 @@ export function SignUpForm({
         email,
         password,
         options: {
-          emailRedirectTo: `https://giftz-buddy-one.vercel.app/dashboard`,
+          emailRedirectTo: `https://giftz-buddy.vercel.app/dashboard`,
         },
       });
       if (authError) throw authError;

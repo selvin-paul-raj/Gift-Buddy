@@ -19,7 +19,7 @@ export default function UsersTable({ currentUserId, users: initialUsers }: Props
 
   const handleSave = async (userId: string, field: keyof AdminUserRow, value: string) => {
     try {
-      await adminUpdateUser(currentUserId, userId, { [field]: value });
+      await adminUpdateUser(userId, { [field]: value });
       setUsers((prev) => prev.map((u) => (u.id === userId ? { ...u, [field]: value } : u)));
       toast.success("User updated!");
     } catch (err) {
@@ -31,7 +31,7 @@ export default function UsersTable({ currentUserId, users: initialUsers }: Props
   const handleDelete = async () => {
     if (!deleteId) return;
     try {
-      await adminDeleteUser(currentUserId, deleteId);
+      await adminDeleteUser(deleteId);
       setUsers((prev) => prev.filter((u) => u.id !== deleteId));
       toast.success("User deleted");
     } catch (err) {

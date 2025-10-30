@@ -5,13 +5,13 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt";
 
-const defaultUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
+const defaultUrl = process.env.NEXT_PUBLIC_VERCEL_URL
+  ? `https://${process.env.NEXT_PUBLIC_VERCEL_URL}`
   : "http://localhost:3000";
 
 export const metadata: Metadata = {
   metadataBase: new URL(defaultUrl),
-  title: "🎁 GiftBuddy - Split Birthday Celebration",
+  title: "GiftBuddy - Split Birthday Celebration",
   description:
     "GiftBuddy helps your team plan birthday events, split bills fairly, track payments, and vote for food - all in one place.",
   keywords: [
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     url: defaultUrl,
-    title: "🎁 GiftBuddy - Birthday Celebrations Made Easy",
+    title: "GiftBuddy - Birthday Celebrations Made Easy",
     description:
       "Split costs, track payments, and celebrate birthdays together with your team.",
     images: [

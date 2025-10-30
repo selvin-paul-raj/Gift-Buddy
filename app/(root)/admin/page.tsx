@@ -1,14 +1,16 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAdminDashboardStats, getAdminEventsList } from "@/lib/queries/admin-events";
+import { adminListUsers } from "@/lib/queries/admin/users";
 import AdminSummaryCards from "./_components/AdminSummaryCards";
 import EventsListGrid from "./_components/EventsListGrid";
 import EventsCrudTable from "./_components/EventsCrudTable";
 import ContributionsTable from "./_components/ContributionsTable";
+import MembersCrudTable from "./_components/MembersCrudTable";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import Link from "next/link";
-import { Plus, Grid, List, DollarSign } from "lucide-react";
+import { Plus, Grid, List, DollarSign, Users } from "lucide-react";
 import { adminListEvents } from "@/lib/actions/admin/events";
 import { adminListContributions } from "@/lib/queries/admin/contributions";
 
@@ -46,6 +48,9 @@ export default async function AdminPage() {
     // Fetch contributions
     const contributions = await adminListContributions(user.id);
 
+    // Fetch all members
+    const members = await adminListUsers();
+
     return (
       <div className="min-h-screen bg-background">
         {/* Header */}
@@ -80,7 +85,7 @@ export default async function AdminPage() {
           </div>
           
           <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 bg-secondary border border-border rounded-lg mb-6">
+            <TabsList className="grid w-full grid-cols-4 bg-secondary border border-border rounded-lg mb-6">
               <TabsTrigger value="events" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground text-xs sm:text-sm">
                 <List size={16} />
                 <span className="hidden sm:inline">Events</span>
@@ -95,6 +100,14 @@ export default async function AdminPage() {
                 <DollarSign size={16} />
                 <span className="hidden sm:inline">Contributions</span>
                 <span className="sm:hidden">Contrib</span>
+              </TabsTrigger>
+              <TabsTrigger value="members" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground text-xs sm:text-sm">
+                <Users size={16} />
+                <span className="hidden sm:inline">Members</span>
+                <span className="sm:hidden">Members</span>
+                <span className="ml-1 text-xs font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                  {members.length}
+                </span>
               </TabsTrigger>
             </TabsList>
 
@@ -111,6 +124,11 @@ export default async function AdminPage() {
             {/* Contributions View */}
             <TabsContent value="contributions" className="mt-6">
               <ContributionsTable currentUserId={user.id} contributions={contributions} />
+            </TabsContent>
+
+            {/* Members CRUD */}
+            <TabsContent value="members" className="mt-6">
+              <MembersCrudTable members={members} />
             </TabsContent>
           </Tabs>
         </div>

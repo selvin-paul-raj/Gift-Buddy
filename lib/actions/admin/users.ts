@@ -23,26 +23,75 @@ export async function adminListUsers(currentUserId: string): Promise<AdminUserRo
 }
 
 export async function adminUpdateUser(
-  currentUserId: string,
   userId: string,
-  patch: Partial<{ name: string; birthday: string }>
+  patch: Partial<{ name: string; birthday: string | null; upi_id: string | null; phone: string | null }>
 ) {
-  await isSystemAdmin(currentUserId);
-
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("Unauthorized");
+  await isSystemAdmin(user.id);
+
   const { error } = await supabase.from("users").update(patch).eq("id", userId);
   if (error) throw error;
 
   revalidatePath("/admin");
 }
 
-export async function adminDeleteUser(currentUserId: string, userId: string) {
-  await isSystemAdmin(currentUserId);
-
+export async function adminDeleteUser(userId: string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("Unauthorized");
+  await isSystemAdmin(user.id);
+
+  // Delete all contributions by this user first
+  await supabase
+    .from("contributions")
+    .delete()
+    .eq("contributor_id", userId);
+
   const { error } = await supabase.from("users").delete().eq("id", userId);
   if (error) throw error;
 
-  // Deleting from auth.users requires service role. Do that in a Route Handler / Edge Function if needed.
   revalidatePath("/admin");
+}
+
+export async function adminCreateUser(data: {
+  name: string;
+  birthday?: string | null;
+  upi_id?: string | null;
+  phone?: string | null;
+}): Promise<AdminUserRow> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  
+  if (!user) throw new Error("Unauthorized");
+  await isSystemAdmin(user.id);
+
+  const newId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
+  const { data: newUser, error } = await supabase
+    .from("users")
+    .insert([
+      {
+        id: newId,
+        name: data.name,
+        birthday: data.birthday || null,
+        upi_id: data.upi_id || null,
+        phone: data.phone || null,
+        role: "user",
+      },
+    ])
+    .select()
+    .single();
+
+  if (error) throw error;
+  revalidatePath("/admin");
+  
+  return {
+    id: newUser.id,
+    name: newUser.name,
+    birthday: newUser.birthday,
+  } as AdminUserRow;
 }

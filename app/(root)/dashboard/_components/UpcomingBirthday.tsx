@@ -52,7 +52,8 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
               gift_link,
               total_amount
             ),
-            users!events_birthday_person_id_fkey(name)
+            users!events_birthday_person_id_fkey(name),
+            event_exclusions(excluded_user_id)
           `)
           .neq("birthday_person_id", user.id)
           .order("date", { ascending: false });
@@ -70,6 +71,16 @@ export default function UpcomingBirthday({ data }: { data: any[] }) {
 
         // Get user contributions for each event
         const eventDataPromises = allEventsData.map(async (event: any) => {
+          // Check if user is excluded from this event
+          const isExcluded = (event.event_exclusions || []).some(
+            (exclusion: any) => exclusion.excluded_user_id === user.id
+          );
+
+          // Skip this event if user is excluded
+          if (isExcluded) {
+            return null;
+          }
+
           const { data: contributions } = await supabase
             .from("contributions")
             .select("split_amount, paid, payment_time")

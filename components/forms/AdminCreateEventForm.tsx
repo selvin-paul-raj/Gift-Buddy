@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { User } from "@/lib/types/database.types";
 import { createEventWithGifts } from "@/lib/actions/createEventWithGifts";
@@ -25,7 +26,7 @@ interface Gift {
 
 export default function AdminCreateEventForm({ users }: AdminCreateEventFormProps) {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
   const [loading, setLoading] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
 
@@ -33,6 +34,7 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
   const [eventDate, setEventDate] = useState("");
   const [birthdayPersonId, setBirthdayPersonId] = useState("");
   const [gifts, setGifts] = useState<Gift[]>([{ id: "1", name: "", link: "", estimatedCost: "" }]);
+  const [excludedUserIds, setExcludedUserIds] = useState<string[]>([]);
   const [upiId, setUpiId] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
 
@@ -59,15 +61,32 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
     setGifts(gifts.map((g) => (g.id === id ? { ...g, [field]: value } : g)));
   };
 
+  const toggleUserExclusion = (userId: string) => {
+    setExcludedUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
+
   const isStep1Valid = eventTitle.trim() && eventDate && birthdayPersonId;
-  const isStep2Valid = gifts.every((g) => g.name.trim() && g.estimatedCost && parseFloat(g.estimatedCost) > 0);
+  const isStep2Valid = true; // Exclusions step is always valid (can have none)
+  const isStep3Valid = gifts.every((g) => g.name.trim() && g.estimatedCost && parseFloat(g.estimatedCost) > 0);
 
   const totalGiftCost = gifts.reduce((sum, g) => sum + (parseFloat(g.estimatedCost) || 0), 0);
-  const splitAmountPerPerson = gifts.length > 0 ? totalGiftCost / (users.length - 1) : 0;
+
+  // Calculate split amount based on included users
+  const includedUsers = users.filter(
+    (u) => u.id !== birthdayPersonId && !excludedUserIds.includes(u.id)
+  );
+  const splitAmountPerPerson = includedUsers.length > 0 ? totalGiftCost / includedUsers.length : 0;
 
   const handleSubmit = async () => {
-    if (!isStep1Valid || !isStep2Valid) {
+    if (!isStep1Valid || !isStep2Valid || !isStep3Valid) {
       toast.error("Please complete all fields");
+      return;
+    }
+
+    if (includedUsers.length <= 0) {
+      toast.error("At least one user must participate in cost splitting");
       return;
     }
 
@@ -84,6 +103,7 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
         })),
         upiId: upiId || undefined,
         phoneNumber: phoneNumber || undefined,
+        excludedUserIds: excludedUserIds.length > 0 ? excludedUserIds : undefined,
       });
 
       toast.success("✅ Event created successfully!");
@@ -99,9 +119,9 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
 
   return (
     <div className="space-y-6">
-      {/* Step Indicator */}
+      {/* Step Indicator - Now 5 steps */}
       <div className="flex gap-2 md:gap-4 mb-8">
-        {[1, 2, 3, 4].map((s) => (
+        {[1, 2, 3, 4, 5].map((s) => (
           <div key={s} className="flex-1">
             <div className={`h-1 rounded-full ${step >= s ? "bg-primary" : "bg-muted"}`} />
             <p className={`text-xs md:text-sm mt-2 text-center font-medium ${step >= s ? "text-foreground" : "text-muted-foreground"}`}>
@@ -153,8 +173,64 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
         </Card>
       )}
 
-      {/* STEP 2 */}
+      {/* STEP 2: Member Exclusions */}
       {step === 2 && (
+        <Card className="border-2 bg-card hover:shadow-md transition-shadow">
+          <div className="p-6 space-y-4">
+            <h2 className="text-2xl font-bold text-foreground">👥 Member Exclusions</h2>
+            <p className="text-sm text-muted-foreground">
+              Select members who should NOT participate in this event. Excluded members will not see this event in their dashboard and will not be charged.
+            </p>
+
+            <div className="space-y-3 bg-secondary/30 p-4 rounded border border-border max-h-64 overflow-y-auto">
+              {users
+                .filter((u) => u.id !== birthdayPersonId)
+                .map((user) => (
+                  <div key={user.id} className="flex items-center space-x-3 p-2 rounded hover:bg-secondary/50 transition">
+                    <Checkbox
+                      id={`exclude-${user.id}`}
+                      checked={excludedUserIds.includes(user.id)}
+                      onCheckedChange={() => toggleUserExclusion(user.id)}
+                      className="w-5 h-5"
+                    />
+                    <Label
+                      htmlFor={`exclude-${user.id}`}
+                      className="text-foreground cursor-pointer flex-1 mb-0"
+                    >
+                      {user.name}
+                    </Label>
+                    {excludedUserIds.includes(user.id) && (
+                      <span className="text-xs bg-destructive/20 text-destructive px-2 py-1 rounded">
+                        Excluded
+                      </span>
+                    )}
+                  </div>
+                ))}
+            </div>
+
+            {excludedUserIds.length > 0 && (
+              <div className="bg-orange-500/10 p-4 rounded border border-orange-500/30">
+                <p className="text-sm font-semibold text-orange-500">
+                  {excludedUserIds.length} member(s) excluded
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cost will be split among {includedUsers.length} participating member(s)
+                </p>
+              </div>
+            )}
+
+            <div className="flex justify-between gap-2 pt-4">
+              <Button onClick={() => setStep(1)} variant="outline">Back</Button>
+              <Button onClick={() => setStep(3)} className="bg-primary hover:bg-primary/90">
+                Next →
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* STEP 3: Add Gifts */}
+      {step === 3 && (
         <Card className="border-2 bg-card hover:shadow-md transition-shadow">
           <div className="p-6 space-y-4">
             <h2 className="text-2xl font-bold text-foreground">🎁 Add Gifts</h2>
@@ -164,7 +240,7 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
                 <Card key={gift.id} className="p-4 bg-secondary/50 border-border">
                   <div className="flex justify-between items-center mb-3">
                     <p className="font-semibold text-foreground">Gift #{idx + 1}</p>
-                    <button onClick={() => removeGift(gift.id)} disabled={gifts.length === 1} className="text-destructive hover:text-destructive/80">
+                    <button onClick={() => removeGift(gift.id)} disabled={gifts.length === 1} className="text-destructive hover:text-destructive/80 disabled:opacity-50">
                       <Trash2 size={18} />
                     </button>
                   </div>
@@ -187,7 +263,7 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
 
                   {gift.estimatedCost && (
                     <p className="text-xs text-primary font-semibold bg-primary/10 p-2 rounded mt-2">
-                      Split: ₹{(parseFloat(gift.estimatedCost) / (users.length - 1)).toFixed(0)}/person
+                      Split: ₹{(parseFloat(gift.estimatedCost) / (includedUsers.length || 1)).toFixed(0)}/person
                     </p>
                   )}
                 </Card>
@@ -216,8 +292,8 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
             </Card>
 
             <div className="flex justify-between gap-2 pt-4">
-              <Button onClick={() => setStep(1)} variant="outline">Back</Button>
-              <Button onClick={() => setStep(3)} disabled={!isStep2Valid} className="bg-primary hover:bg-primary/90">
+              <Button onClick={() => setStep(2)} variant="outline">Back</Button>
+              <Button onClick={() => setStep(4)} disabled={!isStep3Valid} className="bg-primary hover:bg-primary/90">
                 Next →
               </Button>
             </div>
@@ -225,8 +301,8 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
         </Card>
       )}
 
-      {/* STEP 3 */}
-      {step === 3 && (
+      {/* STEP 4: Payment Info */}
+      {step === 4 && (
         <Card className="border-2 bg-card hover:shadow-md transition-shadow">
           <div className="p-6 space-y-4">
             <h2 className="text-2xl font-bold text-foreground">💳 Payment Info</h2>
@@ -256,8 +332,8 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
             </div>
 
             <div className="flex justify-between gap-2 pt-4">
-              <Button onClick={() => setStep(2)} variant="outline">Back</Button>
-              <Button onClick={() => setStep(4)} className="bg-primary hover:bg-primary/90">
+              <Button onClick={() => setStep(3)} variant="outline">Back</Button>
+              <Button onClick={() => setStep(5)} className="bg-primary hover:bg-primary/90">
                 Review →
               </Button>
             </div>
@@ -265,41 +341,79 @@ export default function AdminCreateEventForm({ users }: AdminCreateEventFormProp
         </Card>
       )}
 
-      {/* STEP 4 */}
-      {step === 4 && (
+      {/* STEP 5: Review & Confirm */}
+      {step === 5 && (
         <Card className="border-2 bg-card hover:shadow-md transition-shadow">
           <div className="p-6 space-y-4">
-            <h2 className="text-2xl font-bold text-foreground">✅ Review</h2>
+            <h2 className="text-2xl font-bold text-foreground">✅ Review & Create</h2>
 
             <div className="bg-secondary/50 p-4 rounded border border-border">
-              <p className="text-sm text-muted-foreground">Event</p>
+              <p className="text-sm text-muted-foreground">📅 Event</p>
               <p className="font-semibold text-foreground">{eventTitle}</p>
               <p className="text-sm text-muted-foreground">{new Date(eventDate).toLocaleDateString("en-IN")} • 🎂 {birthdayPerson?.name}</p>
             </div>
 
             <div className="bg-secondary/50 p-4 rounded border border-border space-y-2">
-              <p className="text-sm text-muted-foreground">Gifts ({gifts.length})</p>
+              <p className="text-sm text-muted-foreground">🎁 Gifts ({gifts.length})</p>
               {gifts.map((gift, idx) => (
-                <div key={gift.id} className="flex justify-between text-sm">
-                  <span className="text-foreground">{idx + 1}. {gift.name}</span>
-                  <span className="font-semibold">₹{parseFloat(gift.estimatedCost).toFixed(0)}</span>
+                <div key={gift.id} className="flex justify-between items-start text-sm">
+                  <div className="flex-1">
+                    <p className="text-foreground font-medium">{idx + 1}. {gift.name}</p>
+                    {gift.link && <p className="text-xs text-muted-foreground mt-1">{gift.link}</p>}
+                  </div>
+                  <span className="font-semibold text-primary">₹{parseFloat(gift.estimatedCost).toFixed(0)}</span>
                 </div>
               ))}
               <div className="border-t border-border pt-2 flex justify-between font-semibold text-foreground">
-                <span>Total</span>
+                <span>Total Cost</span>
                 <span>₹{totalGiftCost.toFixed(0)}</span>
               </div>
             </div>
 
-            <div className="bg-primary/10 p-4 rounded border border-primary/30">
-              <p className="text-sm text-muted-foreground">Cost per person ({users.length - 1} contributors)</p>
-              <p className="text-2xl font-bold text-primary">₹{splitAmountPerPerson.toFixed(0)}</p>
+            {excludedUserIds.length > 0 && (
+              <div className="bg-orange-500/10 p-4 rounded border border-orange-500/30">
+                <p className="text-sm font-semibold text-orange-500">❌ Excluded Members ({excludedUserIds.length})</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {users
+                    .filter((u) => excludedUserIds.includes(u.id))
+                    .map((u) => (
+                      <span key={u.id} className="text-xs bg-orange-500/20 text-orange-500 px-2 py-1 rounded">
+                        {u.name}
+                      </span>
+                    ))}
+                </div>
+              </div>
+            )}
+
+            <div className="bg-primary/10 p-4 rounded border border-primary/30 space-y-3">
+              <div>
+                <p className="text-sm text-muted-foreground">👥 Participating Members ({includedUsers.length})</p>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {includedUsers.map((u) => (
+                    <span key={u.id} className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                      {u.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t border-primary/30 pt-3">
+                <p className="text-sm text-muted-foreground">💰 Split Amount per Person</p>
+                <p className="text-3xl font-bold text-primary">₹{splitAmountPerPerson.toFixed(0)}</p>
+              </div>
             </div>
 
+            {(upiId || phoneNumber) && (
+              <div className="bg-secondary/50 p-4 rounded border border-border">
+                <p className="text-sm text-muted-foreground">📱 Payment Details</p>
+                {upiId && <p className="text-sm text-foreground">UPI: {upiId}</p>}
+                {phoneNumber && <p className="text-sm text-foreground">Phone: {phoneNumber}</p>}
+              </div>
+            )}
+
             <div className="flex justify-between gap-2 pt-4">
-              <Button onClick={() => setStep(3)} variant="outline">Back</Button>
+              <Button onClick={() => setStep(4)} variant="outline">Back</Button>
               <Button onClick={handleSubmit} disabled={loading} className="bg-primary hover:bg-primary/90">
-                {loading ? "Creating..." : "✅ Create"}
+                {loading ? "Creating..." : "✅ Create Event"}
               </Button>
             </div>
           </div>

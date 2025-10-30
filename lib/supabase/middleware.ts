@@ -44,8 +44,21 @@ export async function updateSession(request: NextRequest) {
 
   // IMPORTANT: If you remove getClaims() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
-  const { data } = await supabase.auth.getClaims();
-  const user = data?.claims;
+  let user = null;
+  try {
+    const { data } = await supabase.auth.getClaims();
+    user = data?.claims;
+  } catch (error) {
+    // Token refresh failed - user session is invalid
+    // Clear the session and redirect to login
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/login";
+    supabaseResponse = NextResponse.redirect(url);
+    // Clear auth cookies
+    supabaseResponse.cookies.delete("sb-access-token");
+    supabaseResponse.cookies.delete("sb-refresh-token");
+    return supabaseResponse;
+  }
 
   if (
     request.nextUrl.pathname !== "/" &&

@@ -13,7 +13,7 @@ import Link from "next/link";
 
 export default function Page() {
   const router = useRouter();
-  const [countdown, setCountdown] = useState(5);
+  const [countdown, setCountdown] = useState(10);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -22,7 +22,7 @@ export default function Page() {
 
     const redirectTimer = setTimeout(() => {
       router.push("/auth/login");
-    }, 5000);
+    }, 10000);
 
     return () => {
       clearInterval(timer);
