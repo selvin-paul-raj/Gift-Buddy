@@ -85,29 +85,42 @@ export default async function AdminPage() {
           </div>
           
           <Tabs defaultValue="events" className="w-full">
-            <TabsList className="grid w-full grid-cols-4 bg-secondary border border-border rounded-lg mb-6">
-              <TabsTrigger value="events" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground text-xs sm:text-sm">
-                <List size={16} />
-                <span className="hidden sm:inline">Events</span>
-                <span className="sm:hidden">Events</span>
+            <TabsList className="flex w-full bg-secondary border border-border rounded-lg mb-6 p-1 gap-1 overflow-x-auto">
+              <TabsTrigger 
+                value="events" 
+                className="flex items-center justify-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground p-2 rounded whitespace-nowrap flex-shrink-0 hover:bg-secondary/80 transition-colors"
+              >
+                <List size={20} />
+                <span className="hidden sm:inline text-sm font-medium">Events</span>
               </TabsTrigger>
-              <TabsTrigger value="grid" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground text-xs sm:text-sm">
-                <Grid size={16} />
-                <span className="hidden sm:inline">Grid</span>
-                <span className="sm:hidden">Grid</span>
+              
+              <TabsTrigger 
+                value="grid" 
+                className="flex items-center justify-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground p-2 rounded whitespace-nowrap flex-shrink-0 hover:bg-secondary/80 transition-colors"
+              >
+                <Grid size={20} />
+                <span className="hidden sm:inline text-sm font-medium">Grid</span>
               </TabsTrigger>
-              <TabsTrigger value="contributions" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground text-xs sm:text-sm">
-                <DollarSign size={16} />
-                <span className="hidden sm:inline">Contributions</span>
-                <span className="sm:hidden">Contrib</span>
+              
+              <TabsTrigger 
+                value="contributions" 
+                className="flex items-center justify-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground p-2 rounded whitespace-nowrap flex-shrink-0 hover:bg-secondary/80 transition-colors"
+              >
+                <DollarSign size={20} />
+                <span className="hidden sm:inline text-sm font-medium">Payments</span>
               </TabsTrigger>
-              <TabsTrigger value="members" className="flex items-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground text-xs sm:text-sm">
-                <Users size={16} />
-                <span className="hidden sm:inline">Members</span>
-                <span className="sm:hidden">Members</span>
-                <span className="ml-1 text-xs font-bold bg-primary/20 text-primary px-2 py-0.5 rounded-full">
-                  {members.length}
-                </span>
+              
+              <TabsTrigger 
+                value="members" 
+                className="flex items-center justify-center gap-2 data-[state=active]:bg-card data-[state=active]:text-foreground p-2 rounded whitespace-nowrap flex-shrink-0 hover:bg-secondary/80 transition-colors relative"
+              >
+                <div className="relative">
+                  <Users size={20} />
+                  <span className="absolute -top-2 -right-2 text-xs font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full min-w-[20px] text-center">
+                    {members.length}
+                  </span>
+                </div>
+                <span className="hidden sm:inline text-sm font-medium">Members</span>
               </TabsTrigger>
             </TabsList>
 

@@ -24,7 +24,17 @@ self.addEventListener('install', (event) => {
     (async () => {
       try {
         const cache = await caches.open(CACHE_NAME);
-        await cache.addAll(PRECACHE_URLS);
+        // Use addAll with error handling - skip missing files
+        for (const url of PRECACHE_URLS) {
+          try {
+            const response = await fetch(url);
+            if (response.ok) {
+              await cache.put(url, response);
+            }
+          } catch (error) {
+            console.warn(`[SW] Failed to precache ${url}:`, error);
+          }
+        }
         console.log('[SW] Precache completed');
       } catch (error) {
         console.error('[SW] Precache failed:', error);
@@ -72,9 +82,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Skip data: requests
+  if (url.protocol === 'data:') {
+    return;
+  }
+
   // API requests - network first, fall back to cache
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(networkFirst(request));
+    return;
+  }
+
+  // Next.js chunks - network first (don't cache chunks as they change)
+  if (url.pathname.includes('/_next/static/')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Only cache successful responses
+          if (response.ok) {
+            const cache = caches.open(RUNTIME_CACHE);
+            cache.then((c) => c.put(request, response.clone()));
+          }
+          return response;
+        })
+        .catch(() => {
+          // If chunk fails, it's ok - let the app handle it
+          return new Response('Chunk not available', { status: 404 });
+        })
+    );
     return;
   }
 
@@ -104,6 +139,7 @@ async function networkFirst(request) {
 
     if (response.ok) {
       const cache = await caches.open(RUNTIME_CACHE);
+      // Clone the response before caching
       cache.put(request, response.clone());
     }
 
@@ -146,6 +182,7 @@ async function cacheFirst(request) {
 
     if (response.ok) {
       const cache = await caches.open(RUNTIME_CACHE);
+      // Clone the response before caching
       cache.put(request, response.clone());
     }
 
@@ -161,10 +198,17 @@ async function staleWhileRevalidate(request) {
 
   const fetchPromise = fetch(request)
     .then((response) => {
-      if (response.ok) {
-        const cache = caches.open(RUNTIME_CACHE);
-        cache.then((c) => c.put(request, response.clone()));
+      // Don't cache error responses
+      if (!response.ok) {
+        return response;
       }
+
+      // Clone before caching to avoid consuming the body
+      const responseToCache = response.clone();
+      
+      caches.open(RUNTIME_CACHE).then((cache) => {
+        cache.put(request, responseToCache);
+      });
 
       return response;
     })
