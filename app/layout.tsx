@@ -93,7 +93,7 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes" />
         
         {/* Manifest & Icons */}
-        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
+        <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/gift.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/gift.png" />
         <link rel="mask-icon" href="/gift.svg" color="#000000" />
@@ -121,42 +121,51 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
-                window.addEventListener('load', async () => {
-                  try {
-                    const registration = await navigator.serviceWorker.register('/sw.js', {
-                      scope: '/',
-                      updateViaCache: 'none'
-                    });
-                    console.log('[SW] Service Worker registered successfully');
-                    
-                    // Check for updates periodically
-                    setInterval(() => {
-                      registration.update().catch((err) => {
-                        console.warn('[SW] Update check failed:', err);
-                      });
-                    }, 60000); // Check every minute
-                    
-                    // Handle SW updates
-                    registration.addEventListener('updatefound', () => {
-                      const newWorker = registration.installing;
-                      if (newWorker) {
-                        newWorker.addEventListener('statechange', () => {
-                          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            console.log('[SW] New version available');
-                            // Optionally notify user about update
-                          }
-                        });
-                      }
-                    });
-                  } catch (error) {
-                    console.error('[SW] Service Worker registration failed:', error);
-                  }
-                });
+                // Only register on HTTPS or localhost
+                const isSecure = location.protocol === 'https:' || location.hostname === 'localhost';
                 
-                // Handle controller changes (SW update)
-                navigator.serviceWorker.addEventListener('controllerchange', () => {
-                  console.log('[SW] Controller changed - new version activated');
-                });
+                if (isSecure) {
+                  window.addEventListener('load', async () => {
+                    try {
+                      const registration = await navigator.serviceWorker.register('/sw.js', {
+                        scope: '/',
+                        updateViaCache: 'none'
+                      });
+                      console.log('[PWA] Service Worker registered successfully', registration.scope);
+                      
+                      // Check for updates periodically
+                      setInterval(() => {
+                        registration.update().catch((err) => {
+                          console.warn('[PWA] Update check failed:', err);
+                        });
+                      }, 60000); // Check every minute
+                      
+                      // Handle SW updates
+                      registration.addEventListener('updatefound', () => {
+                        const newWorker = registration.installing;
+                        if (newWorker) {
+                          newWorker.addEventListener('statechange', () => {
+                            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                              console.log('[PWA] New version available');
+                              // Optionally notify user about update
+                            }
+                          });
+                        }
+                      });
+                    } catch (error) {
+                      console.error('[PWA] Service Worker registration failed:', error);
+                    }
+                  });
+                  
+                  // Handle controller changes (SW update)
+                  navigator.serviceWorker.addEventListener('controllerchange', () => {
+                    console.log('[PWA] Controller changed - new version activated');
+                  });
+                } else {
+                  console.warn('[PWA] Service Worker requires HTTPS');
+                }
+              } else {
+                console.warn('[PWA] Service Worker not supported');
               }
             `,
           }}
