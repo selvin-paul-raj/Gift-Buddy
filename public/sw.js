@@ -98,16 +98,29 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Only cache successful responses
-          if (response.ok) {
-            const cache = caches.open(RUNTIME_CACHE);
-            cache.then((c) => c.put(request, response.clone()));
+          // Don't try to clone responses that might be already consumed
+          if (!response || !response.ok) {
+            return response;
           }
+          
+          // Clone immediately before any async operations
+          const responseClone = response.clone();
+          
+          // Cache in background without blocking response
+          caches.open(RUNTIME_CACHE).then((cache) => {
+            cache.put(request, responseClone);
+          }).catch((err) => {
+            console.warn('[SW] Failed to cache:', err);
+          });
+          
           return response;
         })
-        .catch(() => {
-          // If chunk fails, it's ok - let the app handle it
-          return new Response('Chunk not available', { status: 404 });
+        .catch((error) => {
+          console.log('[SW] Chunk fetch failed:', request.url, error);
+          // Return cached version if available
+          return caches.match(request).then((cached) => {
+            return cached || new Response('Offline', { status: 503 });
+          });
         })
     );
     return;
