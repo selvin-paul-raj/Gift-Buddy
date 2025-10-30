@@ -39,25 +39,22 @@ export async function updateSession(request: NextRequest) {
   );
 
   // Do not run code between createServerClient and
-  // supabase.auth.getClaims(). A simple mistake could make it very hard to debug
+  // supabase.auth.getSession(). A simple mistake could make it very hard to debug
   // issues with users being randomly logged out.
 
-  // IMPORTANT: If you remove getClaims() and you use server-side rendering
+  // IMPORTANT: If you remove getSession() and you use server-side rendering
   // with the Supabase client, your users may be randomly logged out.
   let user = null;
   try {
-    const { data } = await supabase.auth.getClaims();
-    user = data?.claims;
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    // If there's an error or no session, user is not authenticated
+    if (!error && session?.user) {
+      user = session.user;
+    }
   } catch (error) {
-    // Token refresh failed - user session is invalid
-    // Clear the session and redirect to login
-    const url = request.nextUrl.clone();
-    url.pathname = "/auth/login";
-    supabaseResponse = NextResponse.redirect(url);
-    // Clear auth cookies
-    supabaseResponse.cookies.delete("sb-access-token");
-    supabaseResponse.cookies.delete("sb-refresh-token");
-    return supabaseResponse;
+    // Silently handle auth errors - don't log them
+    // User will be redirected to login below if needed
   }
 
   if (

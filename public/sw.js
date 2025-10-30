@@ -2,7 +2,7 @@
 /* eslint-disable no-undef */
 
 /**
- * GiftBuddy Service Worker
+ * GiftBuddy Service Worker - FIXED VERSION
  * Production-grade PWA service worker with offline support
  */
 
@@ -93,26 +93,26 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Next.js chunks - network first (don't cache chunks as they change)
+  // CSS files - ALWAYS NETWORK ONLY (never cache)
+  // This prevents MIME type errors from cached files
+  if (url.pathname.endsWith('.css')) {
+    event.respondWith(
+      fetch(request).catch(() => {
+        return new Response('CSS not available', { status: 503 });
+      })
+    );
+    return;
+  }
+
+  // Next.js chunks - network first with special handling for JS/CSS
   if (url.pathname.includes('/_next/static/')) {
+    // Don't cache anything in /_next/static - let Vercel headers handle it
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Don't try to clone responses that might be already consumed
           if (!response || !response.ok) {
             return response;
           }
-          
-          // Clone immediately before any async operations
-          const responseClone = response.clone();
-          
-          // Cache in background without blocking response
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(request, responseClone);
-          }).catch((err) => {
-            console.warn('[SW] Failed to cache:', err);
-          });
-          
           return response;
         })
         .catch((error) => {
@@ -132,7 +132,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets - cache first
+  // Static assets (SVG, images, fonts) - cache first
   if (isStaticAsset(url.pathname)) {
     event.respondWith(cacheFirst(request));
     return;
@@ -152,7 +152,6 @@ async function networkFirst(request) {
 
     if (response.ok) {
       const cache = await caches.open(RUNTIME_CACHE);
-      // Clone the response before caching
       cache.put(request, response.clone());
     }
 
@@ -179,7 +178,6 @@ async function networkFirstWithFallback(request, fallbackUrl) {
     return cached;
   }
 
-  // Return fallback page
   return caches.match(fallbackUrl);
 }
 
@@ -195,7 +193,6 @@ async function cacheFirst(request) {
 
     if (response.ok) {
       const cache = await caches.open(RUNTIME_CACHE);
-      // Clone the response before caching
       cache.put(request, response.clone());
     }
 
@@ -211,14 +208,12 @@ async function staleWhileRevalidate(request) {
 
   const fetchPromise = fetch(request)
     .then((response) => {
-      // Don't cache error responses
       if (!response.ok) {
         return response;
       }
 
-      // Clone before caching to avoid consuming the body
       const responseToCache = response.clone();
-      
+
       caches.open(RUNTIME_CACHE).then((cache) => {
         cache.put(request, responseToCache);
       });
@@ -239,8 +234,6 @@ async function staleWhileRevalidate(request) {
 
 function isStaticAsset(pathname) {
   const staticExtensions = [
-    '.js',
-    '.css',
     '.png',
     '.jpg',
     '.jpeg',

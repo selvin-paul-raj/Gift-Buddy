@@ -83,21 +83,26 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* PWA Support */}
-        <meta name="theme-color" content="#000000" />
+        {/* PWA Support - Theme & Capability Meta Tags */}
+        <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+        <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="GiftBuddy" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <link rel="manifest" href="/manifest.json" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=yes" />
+        
+        {/* Manifest & Icons */}
+        <link rel="manifest" href="/manifest.json" crossOrigin="use-credentials" />
         <link rel="icon" href="/gift.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/gift.png" />
-        <link rel="alternate icon" href="/gift.png" />
+        <link rel="mask-icon" href="/gift.svg" color="#000000" />
         
-        {/* Preload critical resources */}
+        {/* Preload Critical Resources */}
         <link rel="preload" href="/gift.svg" as="image" type="image/svg+xml" />
+        <link rel="preload" href="/gift.png" as="image" type="image/png" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
       </head>
       <body className={`${geistSans.className} antialiased`}>
         <ThemeProvider
@@ -111,21 +116,46 @@ export default function RootLayout({
           {children}
         </ThemeProvider>
         
-        {/* Service Worker Registration Script */}
+        {/* Service Worker Registration - Optimized */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', async () => {
                   try {
-                    await navigator.serviceWorker.register('/sw.js', {
+                    const registration = await navigator.serviceWorker.register('/sw.js', {
                       scope: '/',
                       updateViaCache: 'none'
                     });
-                    console.log('Service Worker registered successfully');
+                    console.log('[SW] Service Worker registered successfully');
+                    
+                    // Check for updates periodically
+                    setInterval(() => {
+                      registration.update().catch((err) => {
+                        console.warn('[SW] Update check failed:', err);
+                      });
+                    }, 60000); // Check every minute
+                    
+                    // Handle SW updates
+                    registration.addEventListener('updatefound', () => {
+                      const newWorker = registration.installing;
+                      if (newWorker) {
+                        newWorker.addEventListener('statechange', () => {
+                          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            console.log('[SW] New version available');
+                            // Optionally notify user about update
+                          }
+                        });
+                      }
+                    });
                   } catch (error) {
-                    console.error('Service Worker registration failed:', error);
+                    console.error('[SW] Service Worker registration failed:', error);
                   }
+                });
+                
+                // Handle controller changes (SW update)
+                navigator.serviceWorker.addEventListener('controllerchange', () => {
+                  console.log('[SW] Controller changed - new version activated');
                 });
               }
             `,
