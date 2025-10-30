@@ -9,6 +9,32 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
+        source: "/(_next/static/.*\\.css$)",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "text/css; charset=utf-8",
+          },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/(_next/static/.*\\.js$)",
+        headers: [
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
         source: "/(.*)",
         headers: [
           {
@@ -36,6 +62,10 @@ const nextConfig: NextConfig = {
       {
         source: "/sw.js",
         headers: [
+          {
+            key: "Content-Type",
+            value: "application/javascript; charset=utf-8",
+          },
           {
             key: "Cache-Control",
             value: "public, max-age=0, must-revalidate",
